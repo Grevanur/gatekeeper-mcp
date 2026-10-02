@@ -1,0 +1,32 @@
+tools:
+  normal-tools.tickets.search:
+    risk_category: low
+    write_operation: false
+    external_destination: false
+    data_classification: internal
+  normal-tools.knowledge.search:
+    risk_category: low
+    write_operation: false
+    external_destination: false
+    data_classification: internal
+  sensitive-data.customer.read:
+    risk_category: medium
+    write_operation: false
+    external_destination: false
+    data_classification: confidential
+  sensitive-data.secrets.read:
+    risk_category: high
+    write_operation: false
+    external_destination: false
+    data_classification: secret
+  sensitive-data.database.delete:
+    risk_category: critical
+    write_operation: true
+    external_destination: false
+    data_classification: confidential
+    destructive: true
+  messaging.external.send:
+    risk_category: high
+    write_operation: true
+    external_destination: true
+    data_classification: confidential

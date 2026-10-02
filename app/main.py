@@ -11,6 +11,13 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.database.db import SessionLocal, initialize_database
 from app.auth.identity import AgentIdentity, get_current_agent
+from app.auth.identity import load_agents_configuration
+from app.auth.permissions import PermissionEvaluator
+from app.gateway.downstream import MCPDownstreamClient
+from app.gateway.mcp_server import GatewayMCPMount, create_gateway_mcp_server
+from app.gateway.metadata import ToolMetadataRegistry
+from app.gateway.servers import DownstreamServerRegistry
+from app.gateway.service import MCPGatewayService
 from app.security.evaluator import SecurityEvaluation, SecurityEvaluator
 from app.security.models import ToolRequestContext
 
@@ -40,14 +47,33 @@ async def lifespan(_: FastAPI):
     """Initialize persistence before accepting gateway traffic."""
 
     security_evaluator = SecurityEvaluator.from_config_directory(settings.config_directory)
+    agents = load_agents_configuration(settings.config_directory / "agents.yaml")
+    servers = DownstreamServerRegistry.from_config_file(settings.config_directory / "mcp_servers.yaml")
+    gateway_service = MCPGatewayService(
+        servers=servers,
+        metadata=ToolMetadataRegistry.from_config_file(settings.config_directory / "tool_metadata.yaml"),
+        permissions=PermissionEvaluator(agents),
+        security_evaluator=security_evaluator,
+        downstream_client=MCPDownstreamClient(servers, settings.downstream_timeout_seconds),
+    )
     app.state.security_evaluator = security_evaluator
     app.state.identity_authenticator = security_evaluator.identity_authenticator
+    app.state.gateway_service = gateway_service
     initialize_database()
-    yield
+    mcp_server = create_gateway_mcp_server(lambda: app.state.gateway_service)
+    mcp_app = mcp_server.streamable_http_app(streamable_http_path="/")
+    gateway_mcp_mount.set_app(mcp_app)
+    try:
+        async with mcp_app.router.lifespan_context(mcp_app):
+            yield
+    finally:
+        gateway_mcp_mount.clear_app()
 
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
+gateway_mcp_mount = GatewayMCPMount()
+app.mount("/mcp", gateway_mcp_mount)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["operations"])

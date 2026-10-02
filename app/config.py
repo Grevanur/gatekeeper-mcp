@@ -4,6 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -13,6 +14,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = "sqlite:///./data/gateway.db"
     config_directory: Path = Path("config")
+    downstream_timeout_seconds: float = Field(default=10.0, gt=0)
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,0 +1,14 @@
+mcp_servers:
+  normal-tools:
+    url: http://127.0.0.1:8101/mcp
+    enabled: true
+    trust_tier: development
+  sensitive-data:
+    url: http://127.0.0.1:8102/mcp
+    enabled: true
+    trust_tier: development
+  messaging:
+    url: http://127.0.0.1:8103/mcp
+    enabled: true
+    trust_tier: development
+

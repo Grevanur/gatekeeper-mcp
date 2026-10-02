@@ -1,0 +1,31 @@
+policies:
+  - name: block-sensitive-external-send
+    priority: 100
+    match:
+      tool: external.send
+      sensitive_data_involved: true
+      is_external_destination: true
+    action: DENY
+    reason: Sensitive data cannot be transmitted to an external destination.
+
+  - name: production-delete-requires-approval
+    priority: 90
+    match:
+      tool: database.delete
+      environment: production
+    action: REQUIRE_APPROVAL
+    reason: Destructive production operations require human approval.
+
+  - name: high-risk-needs-approval
+    priority: 50
+    match:
+      minimum_risk_level: HIGH
+    action: REQUIRE_APPROVAL
+    reason: High-risk operations require human approval.
+
+  - name: default-allow
+    priority: 1
+    match: {}
+    action: ALLOW
+    reason: No blocking policy matched.
+

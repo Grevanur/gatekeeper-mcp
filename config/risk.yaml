@@ -1,0 +1,19 @@
+tool_risk:
+  tickets.search: 5
+  knowledge.search: 5
+  customer.read: 15
+  filesystem.read: 25
+  database.update: 55
+  external.send: 65
+  secrets.read: 70
+  database.delete: 90
+  shell.execute: 95
+  default_unknown_tool: 60
+
+risk_modifiers:
+  external_destination: 15
+  sensitive_data: 20
+  production_environment: 10
+  write_operation: 10
+  unknown_tool: 20
+

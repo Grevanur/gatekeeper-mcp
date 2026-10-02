@@ -1,0 +1,27 @@
+tokens:
+  dev-support-token: support-agent
+  dev-admin-token: admin-agent
+
+agents:
+  support-agent:
+    agent_id: support-agent
+    owner: demo-user
+    role: support
+    environment: development
+    allowed_tools:
+      - tickets.search
+      - customer.read
+      - knowledge.search
+    denied_tools:
+      - secrets.read
+      - database.delete
+
+  admin-agent:
+    agent_id: admin-agent
+    owner: demo-user
+    role: admin
+    environment: development
+    allowed_tools:
+      - "*"
+    denied_tools: []
+

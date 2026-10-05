@@ -25,6 +25,7 @@ class PolicyMatch(BaseModel):
     is_external_destination: bool | None = None
     sensitive_data_involved: bool | None = None
     is_write_operation: bool | None = None
+    session_sensitive_data_accessed: bool | None = None
 
 
 class PolicyRule(BaseModel):
@@ -47,4 +48,3 @@ class PolicyDecision(BaseModel):
     decision: PolicyAction
     matched_policy: str | None
     reason: str
-

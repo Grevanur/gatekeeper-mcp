@@ -36,6 +36,17 @@ class RiskEngine:
             )
         if context.sensitive_data_involved:
             factors.append(RiskFactor(name="sensitive_data", value=modifiers.sensitive_data))
+        if context.session_sensitive_data_accessed:
+            factors.append(
+                RiskFactor(name="recent_sensitive_access", value=modifiers.recent_sensitive_access)
+            )
+        if context.session_sensitive_data_accessed and context.is_external_destination:
+            factors.append(
+                RiskFactor(
+                    name="sensitive_to_external_transition",
+                    value=modifiers.sensitive_to_external_transition,
+                )
+            )
         if context.agent.environment == "production":
             factors.append(
                 RiskFactor(name="production_environment", value=modifiers.production_environment)
@@ -55,4 +66,3 @@ class RiskEngine:
         if score <= 80:
             return RiskLevel.HIGH
         return RiskLevel.CRITICAL
-

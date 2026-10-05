@@ -18,4 +18,4 @@ class ToolRequestContext(BaseModel):
     is_write_operation: bool = False
     is_external_destination: bool = False
     sensitive_data_involved: bool = False
-
+    session_sensitive_data_accessed: bool = False

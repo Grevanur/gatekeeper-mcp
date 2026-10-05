@@ -1,4 +1,13 @@
 policies:
+  - name: block-sensitive-session-exfiltration
+    priority: 200
+    match:
+      tool: external.send
+      session_sensitive_data_accessed: true
+      is_external_destination: true
+    action: DENY
+    reason: External transmission is blocked because this session recently accessed sensitive data.
+
   - name: block-sensitive-external-send
     priority: 100
     match:
@@ -28,4 +37,3 @@ policies:
     match: {}
     action: ALLOW
     reason: No blocking policy matched.
-

@@ -49,7 +49,7 @@ def _authenticated_agent(
 def _mcp_session_id(context: ServerRequestContext[object]) -> str:
     request = context.request
     if request is not None:
-        session_id = request.headers.get("mcp-session-id")
+        session_id = request.headers.get("x-gateway-session-id") or request.headers.get("mcp-session-id")
         if session_id and len(session_id) <= 128 and session_id.replace("-", "").replace("_", "").isalnum():
             return session_id
     return str(uuid4())

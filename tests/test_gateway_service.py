@@ -117,7 +117,7 @@ def test_permission_denied_call_never_reaches_downstream() -> None:
     assert fake.calls == []
 
 
-def test_policy_denied_external_send_never_reaches_downstream() -> None:
+def test_external_send_without_sensitive_session_requires_approval() -> None:
     fake = FakeDownstreamClient({"messaging": [_tool("external.send")]})
 
     outcome = asyncio.run(
@@ -130,7 +130,7 @@ def test_policy_denied_external_send_never_reaches_downstream() -> None:
     )
 
     assert outcome.error is not None
-    assert outcome.error.code is GatewayErrorCode.POLICY_DENIED
+    assert outcome.error.code is GatewayErrorCode.APPROVAL_REQUIRED
     assert fake.calls == []
 
 

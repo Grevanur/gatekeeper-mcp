@@ -70,8 +70,12 @@ class PolicyEngine:
             and match.sensitive_data_involved != context.sensitive_data_involved
         ):
             return False
+        if (
+            match.session_sensitive_data_accessed is not None
+            and match.session_sensitive_data_accessed != context.session_sensitive_data_accessed
+        ):
+            return False
         return (
             match.is_write_operation is None
             or match.is_write_operation == context.is_write_operation
         )
-

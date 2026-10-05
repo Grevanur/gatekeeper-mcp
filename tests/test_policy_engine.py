@@ -93,6 +93,20 @@ def test_default_rule_allows_low_risk_call() -> None:
     assert decision.matched_policy == "default-allow"
 
 
+def test_sensitive_session_external_transition_matches_exfiltration_policy() -> None:
+    decision = PolicyEngine(load_policies_configuration("config/policies.yaml")).evaluate(
+        _context(
+            tool_name="external.send",
+            is_external_destination=True,
+            session_sensitive_data_accessed=True,
+        ),
+        _risk(RiskLevel.CRITICAL),
+    )
+
+    assert decision.decision is PolicyAction.DENY
+    assert decision.matched_policy == "block-sensitive-session-exfiltration"
+
+
 def test_malformed_policy_is_rejected() -> None:
     with pytest.raises(ValidationError):
         PoliciesConfiguration.model_validate(

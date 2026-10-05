@@ -76,3 +76,20 @@ def test_high_baseline_is_clamped_to_100() -> None:
 
     assert assessment.score == 100
     assert assessment.level is RiskLevel.CRITICAL
+
+
+def test_sensitive_session_increases_external_risk_with_explicit_factors() -> None:
+    assessment = RiskEngine.from_config_file("config/risk.yaml").assess(
+        _context(
+            "external.send",
+            is_write_operation=True,
+            is_external_destination=True,
+            session_sensitive_data_accessed=True,
+        )
+    )
+
+    assert assessment.score == 100
+    assert {factor.name for factor in assessment.factors} >= {
+        "recent_sensitive_access",
+        "sensitive_to_external_transition",
+    }

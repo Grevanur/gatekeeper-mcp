@@ -1,6 +1,7 @@
 tokens:
   dev-support-token: support-agent
   dev-admin-token: admin-agent
+  dev-reviewer-token: security-reviewer
 
 agents:
   support-agent:
@@ -25,3 +26,10 @@ agents:
       - "*"
     denied_tools: []
 
+  security-reviewer:
+    agent_id: security-reviewer
+    owner: demo-user
+    role: admin
+    environment: development
+    allowed_tools: []
+    denied_tools: []

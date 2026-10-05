@@ -15,6 +15,8 @@ class ToolSecurityMetadata(BaseModel):
     external_destination: bool = False
     data_classification: str
     destructive: bool = False
+    output_classification: str = "internal"
+    sensitive_categories: list[str] = Field(default_factory=list)
 
 
 class ToolMetadataConfiguration(BaseModel):
@@ -36,4 +38,3 @@ class ToolMetadataRegistry:
         """Return metadata only for explicitly configured executable tools."""
 
         return self._tools.get(gateway_tool_name)
-

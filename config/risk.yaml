@@ -16,4 +16,5 @@ risk_modifiers:
   production_environment: 10
   write_operation: 10
   unknown_tool: 20
-
+  recent_sensitive_access: 20
+  sensitive_to_external_transition: 25

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/gateway.db"
     config_directory: Path = Path("config")
     downstream_timeout_seconds: float = Field(default=10.0, gt=0)
+    approval_ttl_seconds: int = Field(default=300, gt=0)
 
     model_config = SettingsConfigDict(
         env_file=".env",

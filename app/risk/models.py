@@ -24,6 +24,8 @@ class RiskModifiers(BaseModel):
     production_environment: RiskValue
     write_operation: RiskValue
     unknown_tool: RiskValue
+    recent_sensitive_access: RiskValue
+    sensitive_to_external_transition: RiskValue
 
 
 class RiskConfiguration(BaseModel):

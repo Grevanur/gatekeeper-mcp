@@ -4,29 +4,39 @@ tools:
     write_operation: false
     external_destination: false
     data_classification: internal
+    output_classification: internal
   normal-tools.knowledge.search:
     risk_category: low
     write_operation: false
     external_destination: false
     data_classification: internal
+    output_classification: internal
   sensitive-data.customer.read:
     risk_category: medium
     write_operation: false
     external_destination: false
     data_classification: confidential
+    output_classification: confidential
+    sensitive_categories:
+      - customer_data
   sensitive-data.secrets.read:
     risk_category: high
     write_operation: false
     external_destination: false
     data_classification: secret
+    output_classification: restricted
+    sensitive_categories:
+      - secrets
   sensitive-data.database.delete:
     risk_category: critical
     write_operation: true
     external_destination: false
     data_classification: confidential
     destructive: true
+    output_classification: internal
   messaging.external.send:
     risk_category: high
     write_operation: true
     external_destination: true
-    data_classification: confidential
+    data_classification: unknown
+    output_classification: internal

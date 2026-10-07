@@ -1,0 +1,24 @@
+approval_workflows:
+  default-high-risk-workflow:
+    description: Development workflow for high-risk actions.
+    primary:
+      roles: [security_admin]
+      timeout_seconds: 300
+    final_timeout_action: DENY
+    break_glass:
+      enabled: false
+
+  production-destructive-workflow:
+    description: Production destructive actions require staged governance.
+    primary:
+      roles: [system_owner]
+      timeout_seconds: 900
+    fallback:
+      roles: [security_admin]
+      timeout_seconds: 900
+    final_timeout_action: DENY
+    break_glass:
+      enabled: true
+      roles: [security_lead]
+      ttl_seconds: 300
+      require_reason: true

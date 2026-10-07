@@ -32,6 +32,7 @@ class PolicyEngine:
                     decision=policy.action,
                     matched_policy=policy.name,
                     reason=policy.reason,
+                    approval_workflow=policy.approval_workflow,
                 )
         return PolicyDecision(
             decision=PolicyAction.DENY,

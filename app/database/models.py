@@ -46,6 +46,7 @@ class AuditEventRecord(Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     error_code: Mapped[str | None] = mapped_column(String(64))
     error_message: Mapped[str | None] = mapped_column(Text)
+    governance_metadata: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
 
 
 class ApprovalRequestRecord(Base):
@@ -76,6 +77,14 @@ class ApprovalRequestRecord(Base):
     denied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     execution_status: Mapped[str] = mapped_column(String(32), default="PENDING_APPROVAL")
     executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    workflow_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    stage: Mapped[str] = mapped_column(String(32), default="PRIMARY")
+    primary_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fallback_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fallback_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    break_glass_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    break_glass_by: Mapped[str | None] = mapped_column(String(128))
+    break_glass_reason: Mapped[str | None] = mapped_column(Text)
 
 
 class SessionSecurityContextRecord(Base):

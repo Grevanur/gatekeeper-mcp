@@ -37,6 +37,7 @@ class AuditEvent(BaseModel):
     latency_ms: int | None
     error_code: str | None
     error_message: str | None
+    metadata: dict[str, Any]
 
     @classmethod
     def from_record(cls, record: AuditEventRecord) -> "AuditEvent":
@@ -69,4 +70,5 @@ class AuditEvent(BaseModel):
             latency_ms=record.latency_ms,
             error_code=record.error_code,
             error_message=record.error_message,
+            metadata=record.governance_metadata or {},
         )

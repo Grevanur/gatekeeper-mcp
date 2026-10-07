@@ -1,5 +1,6 @@
 """Basic defensive redaction for arguments persisted in audit records."""
 
+import re
 from typing import Any
 
 
@@ -35,3 +36,17 @@ def sanitize_arguments(value: Any) -> Any:
 def _is_sensitive_key(key: str) -> bool:
     normalized = key.lower()
     return any(part in normalized for part in _SENSITIVE_KEY_PARTS)
+
+
+def sanitize_free_text(value: str) -> str:
+    """Redact obvious credential fragments from operator-entered text.
+
+    This intentionally remains basic logging hygiene rather than full DLP.
+    """
+
+    value = re.sub(r"(?i)(bearer\s+)[^\s]+", r"\1[REDACTED]", value)
+    return re.sub(
+        r"(?i)\b(password|passwd|token|secret|api[_ -]?key|credential)\s*[:=]\s*\S+",
+        r"\1=[REDACTED]",
+        value,
+    )

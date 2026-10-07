@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.risk.models import RiskLevel
 
@@ -35,7 +35,16 @@ class PolicyRule(BaseModel):
     priority: int
     match: PolicyMatch = Field(default_factory=PolicyMatch)
     action: PolicyAction
+    approval_workflow: str | None = None
     reason: str
+
+    @model_validator(mode="after")
+    def validate_approval_workflow(self) -> "PolicyRule":
+        if self.action is PolicyAction.REQUIRE_APPROVAL and not self.approval_workflow:
+            raise ValueError("REQUIRE_APPROVAL policies require an approval_workflow.")
+        if self.action is not PolicyAction.REQUIRE_APPROVAL and self.approval_workflow is not None:
+            raise ValueError("approval_workflow is only valid for REQUIRE_APPROVAL policies.")
+        return self
 
 
 class PoliciesConfiguration(BaseModel):
@@ -48,3 +57,4 @@ class PolicyDecision(BaseModel):
     decision: PolicyAction
     matched_policy: str | None
     reason: str
+    approval_workflow: str | None = None

@@ -1,0 +1,19 @@
+tokens:
+  dev-reviewer-token: security-admin-1
+  dev-system-owner-token: system-owner-1
+  dev-security-admin-token: security-admin-1
+  dev-security-lead-token: security-lead-1
+
+approvers:
+  system-owner-1:
+    subject_id: system-owner-1
+    display_name: Development System Owner
+    role: system_owner
+  security-admin-1:
+    subject_id: security-admin-1
+    display_name: Development Security Admin
+    role: security_admin
+  security-lead-1:
+    subject_id: security-lead-1
+    display_name: Development Security Lead
+    role: security_lead

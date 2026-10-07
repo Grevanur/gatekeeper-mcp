@@ -12,12 +12,15 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.database.db import SessionLocal, initialize_database
 from app.approvals.models import ApprovalRequest
+from app.approvals.identity import ApproverAuthenticator, ApproverIdentity, get_current_approver, load_approvers_configuration
 from app.approvals.service import ApprovalNotFoundError, ApprovalService
+from app.approvals.workflows import ApprovalWorkflowRegistry
 from app.auth.identity import AgentIdentity, get_current_agent
 from app.auth.identity import load_agents_configuration
 from app.auth.permissions import PermissionEvaluator
 from app.audit.models import AuditEvent
 from app.audit.service import AuditService
+from app.configuration import load_yaml_mapping
 from app.gateway.downstream import MCPDownstreamClient
 from app.gateway.mcp_server import GatewayMCPMount, create_gateway_mcp_server
 from app.gateway.metadata import ToolMetadataRegistry
@@ -26,6 +29,7 @@ from app.gateway.service import MCPGatewayService
 from app.gateway.errors import GatewayError, GatewayErrorCode
 from app.security.evaluator import SecurityEvaluation, SecurityEvaluator
 from app.security.models import ToolRequestContext
+from app.policy.models import PoliciesConfiguration, PolicyAction
 from app.sessions.models import SessionSecurityContext
 from app.sessions.service import (
     SessionNotFoundError,
@@ -58,25 +62,34 @@ class SecurityEvaluationRequest(BaseModel):
 async def lifespan(_: FastAPI):
     """Initialize persistence before accepting gateway traffic."""
 
+    workflows = ApprovalWorkflowRegistry.from_config_file(settings.config_directory / "approval_workflows.yaml")
+    policies = PoliciesConfiguration.model_validate(load_yaml_mapping(settings.config_directory / "policies.yaml"))
+    workflows.validate_references(
+        {policy.approval_workflow for policy in policies.policies if policy.action is PolicyAction.REQUIRE_APPROVAL and policy.approval_workflow}
+    )
     security_evaluator = SecurityEvaluator.from_config_directory(settings.config_directory)
     agents = load_agents_configuration(settings.config_directory / "agents.yaml")
+    approver_authenticator = ApproverAuthenticator(load_approvers_configuration(settings.config_directory / "approvers.yaml"))
     servers = DownstreamServerRegistry.from_config_file(settings.config_directory / "mcp_servers.yaml")
+    audit_service = AuditService(SessionLocal)
     gateway_service = MCPGatewayService(
         servers=servers,
         metadata=ToolMetadataRegistry.from_config_file(settings.config_directory / "tool_metadata.yaml"),
         permissions=PermissionEvaluator(agents),
         security_evaluator=security_evaluator,
         downstream_client=MCPDownstreamClient(servers, settings.downstream_timeout_seconds),
-        audit_service=AuditService(SessionLocal),
+        audit_service=audit_service,
         session_service=SessionSecurityService(SessionLocal),
-        approval_service=ApprovalService(SessionLocal, settings.approval_ttl_seconds),
+        approval_service=ApprovalService(SessionLocal, workflows, audit_service),
     )
     app.state.security_evaluator = security_evaluator
     app.state.identity_authenticator = security_evaluator.identity_authenticator
+    app.state.approver_authenticator = approver_authenticator
     app.state.gateway_service = gateway_service
-    app.state.audit_service = gateway_service.audit_service
+    app.state.audit_service = audit_service
     app.state.session_security_service = gateway_service.session_service
     app.state.approval_service = gateway_service.approval_service
+    app.state.approval_workflows = workflows
     initialize_database()
     mcp_server = create_gateway_mcp_server(lambda: app.state.gateway_service)
     mcp_app = mcp_server.streamable_http_app(streamable_http_path="/")
@@ -205,32 +218,56 @@ def get_approval(
 
 @app.post("/approvals/{approval_id}/approve", response_model=ApprovalRequest, tags=["approvals"])
 def approve_request(
-    approval_id: str, agent: AgentIdentity = Depends(get_current_agent)
+    approval_id: str, approver: ApproverIdentity = Depends(get_current_approver)
 ) -> ApprovalRequest | JSONResponse:
-    _require_admin(agent)
     try:
-        approval = app.state.approval_service.approve(approval_id, agent.agent_id)
+        return app.state.approval_service.approve(approval_id, approver)
     except ApprovalNotFoundError:
         return _error_response(404, GatewayErrorCode.APPROVAL_NOT_FOUND, "Approval request not found.", approval_id)
     except PermissionError as error:
         return _error_response(409, GatewayErrorCode.APPROVAL_DENIED, str(error), approval_id)
-    app.state.gateway_service.record_approval_event("APPROVAL_APPROVED", approval, agent.agent_id)
-    return approval
 
 
 @app.post("/approvals/{approval_id}/deny", response_model=ApprovalRequest, tags=["approvals"])
 def deny_request(
-    approval_id: str, agent: AgentIdentity = Depends(get_current_agent)
+    approval_id: str, approver: ApproverIdentity = Depends(get_current_approver)
 ) -> ApprovalRequest | JSONResponse:
-    _require_admin(agent)
     try:
-        approval = app.state.approval_service.deny(approval_id, agent.agent_id)
+        return app.state.approval_service.deny(approval_id, approver)
     except ApprovalNotFoundError:
         return _error_response(404, GatewayErrorCode.APPROVAL_NOT_FOUND, "Approval request not found.", approval_id)
     except PermissionError as error:
         return _error_response(409, GatewayErrorCode.APPROVAL_DENIED, str(error), approval_id)
-    app.state.gateway_service.record_approval_event("APPROVAL_DENIED", approval, agent.agent_id)
-    return approval
+
+
+class BreakGlassRequest(BaseModel):
+    reason: str = Field(min_length=20, max_length=1000)
+
+
+@app.post("/approvals/{approval_id}/break-glass", response_model=ApprovalRequest, tags=["approvals"])
+def grant_break_glass(
+    approval_id: str,
+    payload: BreakGlassRequest,
+    approver: ApproverIdentity = Depends(get_current_approver),
+) -> ApprovalRequest | JSONResponse:
+    try:
+        return app.state.approval_service.break_glass(approval_id, approver, payload.reason)
+    except ApprovalNotFoundError:
+        return _error_response(404, GatewayErrorCode.APPROVAL_NOT_FOUND, "Approval request not found.", approval_id)
+    except PermissionError as error:
+        return _error_response(409, GatewayErrorCode.APPROVAL_DENIED, str(error), approval_id)
+
+
+@app.get("/approvals/{approval_id}/timeline", response_model=list[AuditEvent], tags=["approvals"])
+def approval_timeline(
+    approval_id: str, agent: AgentIdentity = Depends(get_current_agent)
+) -> list[AuditEvent] | JSONResponse:
+    _require_admin(agent)
+    try:
+        app.state.approval_service.get(approval_id)
+    except ApprovalNotFoundError:
+        return _error_response(404, GatewayErrorCode.APPROVAL_NOT_FOUND, "Approval request not found.", approval_id)
+    return app.state.audit_service.list_events(approval_id=approval_id, limit=500)
 
 
 class ApprovalExecutionRequest(BaseModel):

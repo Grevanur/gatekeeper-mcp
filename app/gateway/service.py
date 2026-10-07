@@ -17,6 +17,7 @@ from app.approvals.service import (
     ApprovalExpiredError,
     ApprovalNotFoundError,
     ApprovalService,
+    ApprovalTimedOutError,
 )
 from app.auth.identity import AgentIdentity
 from app.auth.permissions import PermissionEvaluator
@@ -267,16 +268,8 @@ class MCPGatewayService:
                     risk_level=evaluation.risk.level.value,
                     risk_factors=[factor.model_dump() for factor in evaluation.risk.factors],
                     matched_policy=evaluation.policy.matched_policy if evaluation.policy else None,
+                    workflow_id=evaluation.policy.approval_workflow if evaluation.policy else "default-high-risk-workflow",
                     reason=evaluation.reason,
-                )
-                self._record_audit(
-                    "APPROVAL_CREATED",
-                    context=context,
-                    gateway_tool_name=gateway_tool_name,
-                    route=route,
-                    evaluation=evaluation,
-                    approval=approval,
-                    execution_status="PENDING_APPROVAL",
                 )
             self._record_audit(
                 "TOOL_DECISION",
@@ -405,6 +398,8 @@ class MCPGatewayService:
             return self._approval_error(GatewayErrorCode.APPROVAL_NOT_FOUND, approval_id, agent)
         except ApprovalExpiredError:
             return self._approval_error(GatewayErrorCode.APPROVAL_EXPIRED, approval_id, agent)
+        except ApprovalTimedOutError:
+            return self._approval_error(GatewayErrorCode.APPROVAL_TIMED_OUT, approval_id, agent)
         except ApprovalArgumentMismatchError:
             return self._approval_error(GatewayErrorCode.APPROVAL_ARGUMENT_MISMATCH, approval_id, agent)
         except ApprovalAlreadyConsumedError:
@@ -419,8 +414,7 @@ class MCPGatewayService:
                 route.server_id, route.downstream_tool_name, claim.original_arguments
             )
         except (DownstreamTimeoutError, DownstreamUnavailableError):
-            completed = self._approval_service.complete_execution(approval_id, success=False)
-            self._record_approval_event("APPROVAL_FAILED", completed, agent.agent_id)
+            self._approval_service.complete_execution(approval_id, success=False, actor_id=agent.agent_id)
             return self._error(
                 GatewayErrorCode.DOWNSTREAM_UNAVAILABLE,
                 "The downstream MCP server is unavailable.",
@@ -429,8 +423,7 @@ class MCPGatewayService:
                 approval_id=approval_id,
             )
 
-        completed = self._approval_service.complete_execution(approval_id, success=True)
-        self._record_approval_event("APPROVAL_EXECUTED", completed, agent.agent_id)
+        self._approval_service.complete_execution(approval_id, success=True, actor_id=agent.agent_id)
         logger.info("APPROVAL_EXECUTED approval_id=%s", approval_id)
         return GatewayCallResult(result=downstream_result)
 

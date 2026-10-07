@@ -23,6 +23,7 @@ policies:
       tool: database.delete
       environment: production
     action: REQUIRE_APPROVAL
+    approval_workflow: production-destructive-workflow
     reason: Destructive production operations require human approval.
 
   - name: high-risk-needs-approval
@@ -30,6 +31,7 @@ policies:
     match:
       minimum_risk_level: HIGH
     action: REQUIRE_APPROVAL
+    approval_workflow: default-high-risk-workflow
     reason: High-risk operations require human approval.
 
   - name: default-allow

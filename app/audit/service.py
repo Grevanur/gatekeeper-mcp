@@ -16,13 +16,21 @@ class AuditService:
     def __init__(self, session_factory: Callable[[], Session]) -> None:
         self._session_factory = session_factory
 
-    def record(self, event_type: str, *, arguments: dict[str, Any] | None = None, **fields: Any) -> AuditEvent:
+    def record(
+        self,
+        event_type: str,
+        *,
+        arguments: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        **fields: Any,
+    ) -> AuditEvent:
         """Persist one immutable security timeline event."""
 
         record = AuditEventRecord(
             event_id=f"evt_{uuid4().hex}",
             event_type=event_type,
             sanitized_arguments=sanitize_arguments(arguments or {}),
+            governance_metadata=sanitize_arguments(metadata or {}),
             **fields,
         )
         with self._session_factory() as session:
@@ -44,6 +52,7 @@ class AuditService:
         decision: str | None = None,
         risk_level: str | None = None,
         tool: str | None = None,
+        approval_id: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[AuditEvent]:
@@ -58,6 +67,8 @@ class AuditService:
             statement = statement.where(AuditEventRecord.risk_level == risk_level)
         if tool is not None:
             statement = statement.where(AuditEventRecord.gateway_tool_name == tool)
+        if approval_id is not None:
+            statement = statement.where(AuditEventRecord.approval_id == approval_id)
         safe_limit = min(max(limit, 1), 500)
         safe_offset = max(offset, 0)
         with self._session_factory() as session:

@@ -3,7 +3,7 @@
 from collections.abc import Generator
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -37,9 +37,28 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
 def initialize_database() -> None:
-    """Create declared gateway tables during application startup."""
+    """Create tables and apply the small additive V2 SQLite migration."""
 
     Base.metadata.create_all(bind=engine)
+    additions = {
+        "approval_requests": {
+            "workflow_id": "VARCHAR(128)",
+            "stage": "VARCHAR(32) DEFAULT 'PRIMARY'",
+            "primary_expires_at": "DATETIME",
+            "fallback_started_at": "DATETIME",
+            "fallback_expires_at": "DATETIME",
+            "break_glass_expires_at": "DATETIME",
+            "break_glass_by": "VARCHAR(128)",
+            "break_glass_reason": "TEXT",
+        },
+        "audit_events": {"metadata": "JSON DEFAULT '{}'"},
+    }
+    with engine.begin() as connection:
+        for table_name, columns in additions.items():
+            existing = {row[1] for row in connection.execute(text(f"PRAGMA table_info({table_name})"))}
+            for name, definition in columns.items():
+                if name not in existing:
+                    connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {name} {definition}"))
 
 
 def get_db_session() -> Generator[Session, None, None]:
@@ -50,4 +69,3 @@ def get_db_session() -> Generator[Session, None, None]:
         yield session
     finally:
         session.close()
-

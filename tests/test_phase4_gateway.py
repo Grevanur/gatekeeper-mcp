@@ -6,6 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.approvals.service import ApprovalService
+from app.approvals.identity import ApproverIdentity
+from app.approvals.workflows import ApprovalWorkflowRegistry
 from app.auth.identity import AgentIdentity, load_agents_configuration
 from app.auth.permissions import PermissionEvaluator
 from app.audit.service import AuditService
@@ -51,7 +53,9 @@ def _gateway() -> tuple[MCPGatewayService, CountingDownstream, AuditService, Ses
     downstream = CountingDownstream()
     audit = AuditService(factory)
     sessions = SessionSecurityService(factory)
-    approvals = ApprovalService(factory, ttl_seconds=300)
+    approvals = ApprovalService(
+        factory, ApprovalWorkflowRegistry.from_config_file("config/approval_workflows.yaml"), audit
+    )
     gateway = MCPGatewayService(
         servers=DownstreamServerRegistry.from_config_file("config/mcp_servers.yaml"),
         metadata=ToolMetadataRegistry.from_config_file("config/tool_metadata.yaml"),
@@ -116,8 +120,10 @@ def test_approval_execution_is_audited_and_cannot_be_replayed() -> None:
     assert requested.error.code is GatewayErrorCode.APPROVAL_REQUIRED
     approval_id = requested.error.approval_id
     assert approval_id is not None
-    approved = approvals.approve(approval_id, "security-reviewer")
-    gateway.record_approval_event("APPROVAL_APPROVED", approved, "security-reviewer")
+    approved = approvals.approve(
+        approval_id,
+        ApproverIdentity(subject_id="security-admin-1", display_name="Reviewer", role="security_admin"),
+    )
     executed = asyncio.run(gateway.execute_approved_action(admin, approval_id))
     replay = asyncio.run(gateway.execute_approved_action(admin, approval_id))
 
@@ -127,6 +133,6 @@ def test_approval_execution_is_audited_and_cannot_be_replayed() -> None:
     assert downstream.calls == [("sensitive-data", "database.delete", {"table": "temporary_records"})]
     assert {event.event_type for event in audit.list_events(session_id="approval-session")} >= {
         "APPROVAL_CREATED",
-        "APPROVAL_APPROVED",
+        "APPROVAL_PRIMARY_APPROVED",
         "APPROVAL_EXECUTED",
     }

@@ -116,3 +116,12 @@ GET  /sessions/{session_id}
 ```
 
 The supplied development tokens are intentionally local-only: `dev-admin-token`, `dev-reviewer-token`, and `dev-support-token`.
+
+## V2 Phase 1: approval governance
+
+Approval is now role-bound, request-bound, time-bound, auditable, and single-use. Configured workflows support primary approvers, fallback escalation, terminal fail-closed timeouts, and exceptional short-lived break-glass access. See [approval-governance.md](docs/approval-governance.md) and run:
+
+```bash
+python scripts/run_v2_approval_escalation_demo.py
+python scripts/run_v2_break_glass_demo.py
+```

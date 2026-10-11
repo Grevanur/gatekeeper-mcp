@@ -33,3 +33,12 @@ agents:
     environment: development
     allowed_tools: []
     denied_tools: []
+
+  production-admin:
+    agent_id: production-admin
+    owner: demo-user
+    role: admin
+    environment: production
+    allowed_tools:
+      - "*"
+    denied_tools: []

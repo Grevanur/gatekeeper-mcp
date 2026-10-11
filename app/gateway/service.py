@@ -42,6 +42,7 @@ from app.policy.models import PolicyAction
 from app.security.evaluator import SecurityEvaluator
 from app.security.models import ToolRequestContext
 from app.sessions.service import SessionOwnershipMismatchError, SessionSecurityService
+from app.workflows.registry import WorkflowContextResolver
 
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,7 @@ class MCPGatewayService:
         audit_service: AuditService | None = None,
         session_service: SessionSecurityService | None = None,
         approval_service: ApprovalService | None = None,
+        workflow_contexts: WorkflowContextResolver | None = None,
     ) -> None:
         self._servers = servers
         self._metadata = metadata
@@ -79,6 +81,7 @@ class MCPGatewayService:
         self._audit_service = audit_service
         self._session_service = session_service
         self._approval_service = approval_service
+        self._workflow_contexts = workflow_contexts
 
     async def list_tools(self, agent: AgentIdentity) -> list[Tool]:
         """Discover only enabled, configured tools the agent may use."""
@@ -189,6 +192,7 @@ class MCPGatewayService:
                 gateway_tool_name,
             )
 
+        workflow_context = self._workflow_contexts.resolve(gateway_environment=agent.environment) if self._workflow_contexts else None
         context = ToolRequestContext(
             request_id=request_id,
             session_id=session_id,
@@ -203,6 +207,7 @@ class MCPGatewayService:
                 or bool(session_context and session_context.sensitive_data_accessed)
             ),
             session_sensitive_data_accessed=bool(session_context and session_context.sensitive_data_accessed),
+            workflow_context=workflow_context,
         )
         logger.info(
             "MCP_TOOL_REQUEST request_id=%s session_id=%s agent=%s gateway_tool=%s downstream_server=%s downstream_tool=%s",
@@ -525,6 +530,11 @@ class MCPGatewayService:
         self._audit_service.record(
             event_type,
             arguments=context.arguments,
+            metadata={
+                "workflow_context": context.workflow_context.model_dump(mode="json")
+                if context.workflow_context is not None
+                else None,
+            },
             request_id=context.request_id,
             session_id=context.session_id,
             agent_id=context.agent.agent_id,

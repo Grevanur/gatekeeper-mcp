@@ -1,0 +1,22 @@
+workflows:
+  - id: routine-maintenance
+    name: Routine maintenance
+    description: Internal maintenance with limited business impact.
+    business_criticality: low
+    customer_impact: false
+    tags: [maintenance]
+    time_zone: America/New_York
+  - id: customer-data-maintenance
+    name: Customer data maintenance
+    description: Changes that may affect customer data and service operations.
+    business_criticality: high
+    customer_impact: true
+    tags: [customer-data, change-control]
+    time_zone: America/New_York
+  - id: critical-production-change
+    name: Critical production change
+    description: High-blast-radius production work requiring strict oversight.
+    business_criticality: critical
+    customer_impact: true
+    tags: [production, critical, change-control]
+    time_zone: America/New_York

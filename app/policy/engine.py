@@ -97,6 +97,21 @@ class PolicyEngine:
             and match.session_sensitive_data_accessed != context.session_sensitive_data_accessed
         ):
             return False
+        workflow = context.workflow_context
+        if match.workflow_id is not None and (workflow is None or workflow.workflow_id != match.workflow_id):
+            return False
+        if match.business_criticality is not None and (workflow is None or workflow.business_criticality.value != match.business_criticality):
+            return False
+        if match.customer_impact is not None and (workflow is None or workflow.customer_impact != match.customer_impact):
+            return False
+        if match.minimum_records_affected is not None and (workflow is None or workflow.estimated_records_affected < match.minimum_records_affected):
+            return False
+        if match.after_hours is not None and (workflow is None or workflow.after_hours != match.after_hours):
+            return False
+        if match.emergency is not None and (workflow is None or workflow.emergency != match.emergency):
+            return False
+        if match.required_tags and (workflow is None or not set(match.required_tags).issubset(workflow.tags)):
+            return False
         return (
             match.is_write_operation is None
             or match.is_write_operation == context.is_write_operation

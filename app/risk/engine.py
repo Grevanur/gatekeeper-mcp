@@ -53,6 +53,22 @@ class RiskEngine:
             )
         if context.is_write_operation:
             factors.append(RiskFactor(name="write_operation", value=modifiers.write_operation))
+        workflow = context.workflow_context
+        if workflow is not None:
+            if workflow.business_criticality.value == "high":
+                factors.append(RiskFactor(name="high_business_criticality", value=modifiers.high_business_criticality))
+            if workflow.business_criticality.value == "critical":
+                factors.append(RiskFactor(name="critical_business_criticality", value=modifiers.critical_business_criticality))
+            if workflow.customer_impact:
+                factors.append(RiskFactor(name="customer_impact", value=modifiers.customer_impact))
+            if workflow.estimated_records_affected >= self._configuration.large_records_threshold:
+                factors.append(RiskFactor(name="large_blast_radius", value=modifiers.large_blast_radius))
+            elif workflow.estimated_records_affected >= self._configuration.bulk_records_threshold:
+                factors.append(RiskFactor(name="bulk_blast_radius", value=modifiers.bulk_blast_radius))
+            if workflow.after_hours:
+                factors.append(RiskFactor(name="after_hours", value=modifiers.after_hours))
+            if workflow.emergency:
+                factors.append(RiskFactor(name="emergency_change", value=modifiers.emergency_change))
 
         score = min(100, sum(factor.value for factor in factors))
         return RiskAssessment(score=score, level=self._level_for_score(score), factors=factors)

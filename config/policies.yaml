@@ -62,6 +62,58 @@ policies:
     approval_workflow: default-high-risk-workflow
     reason: High-risk operations require human approval.
 
+  - name: bulk-production-update-requires-approval
+    id: bulk-production-update-approval
+    description: Requires approval for high-impact bulk production changes.
+    version: 1
+    owner: platform-security
+    status: ACTIVE
+    review: {last_reviewed_at: 2026-10-10, review_interval_days: 90}
+    change_reason: Phase 3 workflow-aware change control.
+    priority: 80
+    match:
+      tool: database.update
+      environment: production
+      minimum_records_affected: 1000
+      customer_impact: true
+      required_tags: [change-control]
+    action: REQUIRE_APPROVAL
+    approval_workflow: production-destructive-workflow
+    reason: Bulk customer-impacting production updates require human approval.
+
+  - name: routine-development-update-allowed
+    id: routine-development-update-allow
+    description: Allows low-criticality development maintenance before generic risk handling.
+    version: 1
+    owner: platform-security
+    status: ACTIVE
+    review: {last_reviewed_at: 2026-10-10, review_interval_days: 90}
+    change_reason: Phase 3 same-tool context baseline.
+    priority: 60
+    match:
+      tool: database.update
+      environment: development
+      workflow_id: routine-maintenance
+      business_criticality: low
+    action: ALLOW
+    reason: Routine development maintenance is allowed under its registered workflow.
+
+  - name: critical-after-hours-production-change-denied
+    id: critical-after-hours-production-deny
+    description: Blocks critical emergency production changes after hours.
+    version: 1
+    owner: platform-security
+    status: ACTIVE
+    review: {last_reviewed_at: 2026-10-10, review_interval_days: 90}
+    change_reason: Phase 3 emergency guardrail.
+    priority: 95
+    match:
+      environment: production
+      business_criticality: critical
+      after_hours: true
+    action: DENY
+    reason: Critical after-hours production changes are denied pending an explicit controlled process.
+
   - name: default-allow
     id: default-allow
     description: Allows requests with no higher-priority match.

@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.auth.identity import AgentIdentity
+from app.workflows.models import ResolvedWorkflowContext
 
 
 class ToolRequestContext(BaseModel):
@@ -19,3 +20,4 @@ class ToolRequestContext(BaseModel):
     is_external_destination: bool = False
     sensitive_data_involved: bool = False
     session_sensitive_data_accessed: bool = False
+    workflow_context: ResolvedWorkflowContext | None = None

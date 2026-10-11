@@ -1,0 +1,26 @@
+scenarios:
+  - id: routine-development-update
+    request:
+      tool_name: database.update
+      is_write_operation: true
+      workflow_context:
+        workflow_id: routine-maintenance
+    expected_decision: ALLOW
+  - id: bulk-production-update
+    request:
+      agent_id: production-admin
+      tool_name: database.update
+      is_write_operation: true
+      workflow_context:
+        workflow_id: customer-data-maintenance
+        estimated_records_affected: 5000
+    expected_decision: REQUIRE_APPROVAL
+  - id: critical-after-hours-production-change
+    request:
+      agent_id: production-admin
+      tool_name: database.update
+      is_write_operation: true
+      workflow_context:
+        workflow_id: critical-production-change
+        after_hours: true
+    expected_decision: DENY

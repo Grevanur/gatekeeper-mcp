@@ -9,7 +9,7 @@ from app.auth.identity import IdentityAuthenticator, load_agents_configuration
 from app.auth.permissions import PermissionEvaluator, PermissionResult
 from app.policy.engine import PolicyEngine
 from app.policy.loader import load_policies_configuration
-from app.policy.models import PolicyAction, PolicyDecision
+from app.policy.models import PoliciesConfiguration, PolicyAction, PolicyDecision
 from app.risk.engine import RiskEngine
 from app.risk.models import RiskAssessment, RiskFactor, RiskLevel
 from app.security.models import ToolRequestContext
@@ -105,6 +105,16 @@ class SecurityEvaluator:
             policy=policy,
             final_decision=policy.decision,
             reason=policy.reason,
+        )
+
+    def with_policy_configuration(self, configuration: PoliciesConfiguration) -> "SecurityEvaluator":
+        """Create an isolated evaluator for a dry-run candidate policy set."""
+
+        return SecurityEvaluator(
+            identity_authenticator=self.identity_authenticator,
+            permission_evaluator=self._permission_evaluator,
+            risk_engine=self._risk_engine,
+            policy_engine=PolicyEngine(configuration),
         )
 
     @staticmethod

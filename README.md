@@ -129,3 +129,9 @@ python scripts/run_v2_break_glass_demo.py
 ## V2 Phase 2: exact binding and policy lifecycle
 
 Human approval applies to the exact action reviewed, not a general category of future actions. Policies have accountable owners, versions, lifecycle status, and review cycles. See [approval-binding.md](docs/approval-binding.md) and [policy-lifecycle.md](docs/policy-lifecycle.md).
+
+## V2 Phase 3: adaptive workflow context and policy simulation
+
+Gatekeeper MCP can evaluate the same tool differently depending on workflow context such as environment, data sensitivity, business criticality, blast radius, and customer impact. Context can increase privilege requirements, never silently weaken trusted security state; caller-declared metadata cannot override higher-trust context.
+
+Policy simulation allows proposed context and policy behavior to be evaluated before activation without executing downstream tools. Simulation never executes downstream actions, and policy changes should be tested before activation. See [workflow-context.md](docs/workflow-context.md) and [policy-simulation.md](docs/policy-simulation.md).

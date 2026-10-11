@@ -45,6 +45,13 @@ class PolicyMatch(BaseModel):
     sensitive_data_involved: bool | None = None
     is_write_operation: bool | None = None
     session_sensitive_data_accessed: bool | None = None
+    workflow_id: str | None = None
+    business_criticality: str | None = None
+    customer_impact: bool | None = None
+    minimum_records_affected: int | None = Field(default=None, ge=0)
+    after_hours: bool | None = None
+    emergency: bool | None = None
+    required_tags: list[str] = Field(default_factory=list)
 
 
 class PolicyRule(BaseModel):

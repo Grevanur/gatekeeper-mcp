@@ -18,3 +18,13 @@ risk_modifiers:
   unknown_tool: 20
   recent_sensitive_access: 20
   sensitive_to_external_transition: 25
+  high_business_criticality: 10
+  critical_business_criticality: 20
+  customer_impact: 10
+  bulk_blast_radius: 15
+  large_blast_radius: 25
+  after_hours: 10
+  emergency_change: 10
+
+bulk_records_threshold: 1000
+large_records_threshold: 10000

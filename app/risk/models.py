@@ -26,6 +26,13 @@ class RiskModifiers(BaseModel):
     unknown_tool: RiskValue
     recent_sensitive_access: RiskValue
     sensitive_to_external_transition: RiskValue
+    high_business_criticality: RiskValue = 0
+    critical_business_criticality: RiskValue = 0
+    customer_impact: RiskValue = 0
+    bulk_blast_radius: RiskValue = 0
+    large_blast_radius: RiskValue = 0
+    after_hours: RiskValue = 0
+    emergency_change: RiskValue = 0
 
 
 class RiskConfiguration(BaseModel):
@@ -33,6 +40,8 @@ class RiskConfiguration(BaseModel):
 
     tool_risk: dict[str, RiskValue]
     risk_modifiers: RiskModifiers
+    bulk_records_threshold: int = Field(default=1_000, ge=1)
+    large_records_threshold: int = Field(default=10_000, ge=1)
 
     @field_validator("tool_risk")
     @classmethod

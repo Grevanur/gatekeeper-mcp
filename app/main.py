@@ -31,6 +31,9 @@ from app.security.evaluator import SecurityEvaluation, SecurityEvaluator
 from app.security.models import ToolRequestContext
 from app.policy.lifecycle import PolicyLifecycleService, PolicySummary
 from app.policy.models import PoliciesConfiguration, PolicyAction, PolicyStatus
+from app.simulation.models import SimulationComparison, SimulationComparisonRequest, SimulationRequest, SimulationResult
+from app.simulation.service import SimulationService
+from app.workflows.registry import WorkflowContextResolver
 from app.sessions.models import SessionSecurityContext
 from app.sessions.service import (
     SessionNotFoundError,
@@ -70,6 +73,7 @@ async def lifespan(_: FastAPI):
     )
     security_evaluator = SecurityEvaluator.from_config_directory(settings.config_directory)
     agents = load_agents_configuration(settings.config_directory / "agents.yaml")
+    workflow_contexts = WorkflowContextResolver.from_config_file(settings.config_directory / "workflows.yaml")
     approver_authenticator = ApproverAuthenticator(load_approvers_configuration(settings.config_directory / "approvers.yaml"))
     servers = DownstreamServerRegistry.from_config_file(settings.config_directory / "mcp_servers.yaml")
     audit_service = AuditService(SessionLocal)
@@ -83,6 +87,7 @@ async def lifespan(_: FastAPI):
         audit_service=audit_service,
         session_service=SessionSecurityService(SessionLocal),
         approval_service=ApprovalService(SessionLocal, workflows, audit_service),
+        workflow_contexts=workflow_contexts,
     )
     app.state.security_evaluator = security_evaluator
     app.state.identity_authenticator = security_evaluator.identity_authenticator
@@ -95,6 +100,7 @@ async def lifespan(_: FastAPI):
     initialize_database()
     policy_lifecycle.synchronize()
     app.state.policy_lifecycle = policy_lifecycle
+    app.state.simulation_service = SimulationService(security_evaluator, agents, workflow_contexts)
     mcp_server = create_gateway_mcp_server(lambda: app.state.gateway_service)
     mcp_app = mcp_server.streamable_http_app(streamable_http_path="/")
     gateway_mcp_mount.set_app(mcp_app)
@@ -154,6 +160,34 @@ def evaluate_security(
         sensitive_data_involved=payload.sensitive_data_involved,
     )
     return app.state.security_evaluator.evaluate(context)
+
+
+@app.post("/simulate/evaluate", response_model=SimulationResult, tags=["simulation"])
+def simulate_evaluate(
+    payload: SimulationRequest,
+    agent: AgentIdentity = Depends(get_current_agent),
+) -> SimulationResult:
+    """Evaluate a proposed context without contacting or executing a downstream MCP server."""
+
+    _require_admin(agent)
+    try:
+        return app.state.simulation_service.evaluate(payload)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/simulate/compare", response_model=SimulationComparison, tags=["simulation"])
+def simulate_compare(
+    payload: SimulationComparisonRequest,
+    agent: AgentIdentity = Depends(get_current_agent),
+) -> SimulationComparison:
+    """Compare two dry-run evaluations; neither path can execute downstream work."""
+
+    _require_admin(agent)
+    try:
+        return app.state.simulation_service.compare(payload)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 def _require_admin(agent: AgentIdentity) -> None:

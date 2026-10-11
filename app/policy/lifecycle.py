@@ -55,9 +55,14 @@ class PolicyLifecycleService:
                 )
                 if record is not None:
                     if record.snapshot_hash != snapshot_hash:
-                        raise ValueError(
-                            f"Policy {policy.id} version {policy.version} changed without a version increment."
-                        )
+                        # Phase 3 added optional workflow matchers.  A policy that does not
+                        # use one is semantically unchanged from its V2 Phase 2 snapshot.
+                        # Accept only that narrow, additive compatibility case.
+                        legacy_snapshot = self._without_empty_workflow_matchers(snapshot)
+                        if record.snapshot_hash != hash_canonical(legacy_snapshot):
+                            raise ValueError(
+                                f"Policy {policy.id} version {policy.version} changed without a version increment."
+                            )
                     continue
                 has_previous_version = session.scalar(
                     select(PolicyVersionRecord.id).where(PolicyVersionRecord.policy_id == policy.id)
@@ -164,3 +169,16 @@ class PolicyLifecycleService:
     def _now(self) -> datetime:
         value = self._clock.now()
         return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+    @staticmethod
+    def _without_empty_workflow_matchers(snapshot: dict[str, Any]) -> dict[str, Any]:
+        """Return the exact pre-Phase-3 representation for legacy snapshots only."""
+
+        copied = {**snapshot, "match": dict(snapshot["match"])}
+        for field in (
+            "workflow_id", "business_criticality", "customer_impact",
+            "minimum_records_affected", "after_hours", "emergency", "required_tags",
+        ):
+            if copied["match"].get(field) in (None, []):
+                copied["match"].pop(field, None)
+        return copied

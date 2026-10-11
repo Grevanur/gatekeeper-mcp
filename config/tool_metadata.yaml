@@ -40,3 +40,5 @@ tools:
     external_destination: true
     data_classification: unknown
     output_classification: internal
+    destination_argument: destination
+    destination_type: email

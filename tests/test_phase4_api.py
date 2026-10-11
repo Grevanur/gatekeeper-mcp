@@ -63,3 +63,22 @@ def test_governance_endpoints_enforce_role_bound_approval_and_expose_timeline() 
     assert {"APPROVAL_CREATED", "APPROVAL_PRIMARY_APPROVED"} <= {
         event["event_type"] for event in timeline.json()
     }
+
+
+def test_policy_lifecycle_endpoints_expose_owner_version_and_history() -> None:
+    with TestClient(app) as client:
+        policies = client.get("/policies", headers={"Authorization": "Bearer dev-reviewer-token"})
+        detail = client.get(
+            "/policies/production-delete-approval",
+            headers={"Authorization": "Bearer dev-reviewer-token"},
+        )
+        history = client.get(
+            "/policies/production-delete-approval/history",
+            headers={"Authorization": "Bearer dev-reviewer-token"},
+        )
+
+    assert policies.status_code == 200
+    assert detail.json()["owner"] == "platform-security"
+    assert detail.json()["version"] == 1
+    assert history.status_code == 200
+    assert history.json()[0]["version"] == 1

@@ -125,3 +125,7 @@ Approval is now role-bound, request-bound, time-bound, auditable, and single-use
 python scripts/run_v2_approval_escalation_demo.py
 python scripts/run_v2_break_glass_demo.py
 ```
+
+## V2 Phase 2: exact binding and policy lifecycle
+
+Human approval applies to the exact action reviewed, not a general category of future actions. Policies have accountable owners, versions, lifecycle status, and review cycles. See [approval-binding.md](docs/approval-binding.md) and [policy-lifecycle.md](docs/policy-lifecycle.md).

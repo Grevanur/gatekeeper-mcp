@@ -17,6 +17,8 @@ class ToolSecurityMetadata(BaseModel):
     destructive: bool = False
     output_classification: str = "internal"
     sensitive_categories: list[str] = Field(default_factory=list)
+    destination_argument: str | None = None
+    destination_type: str | None = None
 
 
 class ToolMetadataConfiguration(BaseModel):

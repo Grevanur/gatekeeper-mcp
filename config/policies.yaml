@@ -1,5 +1,12 @@
 policies:
   - name: block-sensitive-session-exfiltration
+    id: block-sensitive-session-exfiltration
+    description: Blocks external sends after sensitive session access.
+    version: 1
+    owner: platform-security
+    status: ACTIVE
+    review: {last_reviewed_at: 2026-10-10, review_interval_days: 90}
+    change_reason: Initial lifecycle registration.
     priority: 200
     match:
       tool: external.send
@@ -9,6 +16,13 @@ policies:
     reason: External transmission is blocked because this session recently accessed sensitive data.
 
   - name: block-sensitive-external-send
+    id: block-sensitive-external-send
+    description: Blocks direct sensitive external transmission.
+    version: 1
+    owner: platform-security
+    status: ACTIVE
+    review: {last_reviewed_at: 2026-10-10, review_interval_days: 90}
+    change_reason: Initial lifecycle registration.
     priority: 100
     match:
       tool: external.send
@@ -18,6 +32,13 @@ policies:
     reason: Sensitive data cannot be transmitted to an external destination.
 
   - name: production-delete-requires-approval
+    id: production-delete-approval
+    description: Governs destructive production database actions.
+    version: 1
+    owner: platform-security
+    status: ACTIVE
+    review: {last_reviewed_at: 2026-10-10, review_interval_days: 90}
+    change_reason: Initial lifecycle registration.
     priority: 90
     match:
       tool: database.delete
@@ -27,6 +48,13 @@ policies:
     reason: Destructive production operations require human approval.
 
   - name: high-risk-needs-approval
+    id: high-risk-approval
+    description: Governs high-risk gateway actions.
+    version: 1
+    owner: platform-security
+    status: ACTIVE
+    review: {last_reviewed_at: 2026-10-10, review_interval_days: 90}
+    change_reason: Initial lifecycle registration.
     priority: 50
     match:
       minimum_risk_level: HIGH
@@ -35,6 +63,13 @@ policies:
     reason: High-risk operations require human approval.
 
   - name: default-allow
+    id: default-allow
+    description: Allows requests with no higher-priority match.
+    version: 1
+    owner: platform-security
+    status: ACTIVE
+    review: {last_reviewed_at: 2026-10-10, review_interval_days: 90}
+    change_reason: Initial lifecycle registration.
     priority: 1
     match: {}
     action: ALLOW

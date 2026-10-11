@@ -2,8 +2,6 @@
 
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
-import hashlib
-import json
 from typing import Any
 from uuid import uuid4
 
@@ -11,6 +9,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.approvals.authorization import can_approve
+from app.approvals.binding import ApprovalBinding, binding_diff, hash_canonical
 from app.approvals.clock import Clock, UtcClock
 from app.approvals.identity import ApproverIdentity
 from app.approvals.models import ApprovalRequest, ApprovalStatus, ExecutionClaim
@@ -44,9 +43,25 @@ class ApprovalArgumentMismatchError(PermissionError):
     pass
 
 
+class ApprovalBindingMismatchError(PermissionError):
+    def __init__(self, changed_fields: list[str]) -> None:
+        self.changed_fields = changed_fields
+        self.code = (
+            "APPROVAL_DESTINATION_MISMATCH"
+            if "destination" in changed_fields
+            else "APPROVAL_TOOL_MISMATCH"
+            if any(field in {"gateway_tool_name", "downstream_server", "downstream_tool_name"} for field in changed_fields)
+            else "APPROVAL_ENVIRONMENT_MISMATCH"
+            if changed_fields == ["environment"]
+            else "APPROVAL_SECURITY_CONTEXT_MISMATCH"
+            if changed_fields == ["security_context"]
+            else "APPROVAL_BINDING_CHANGED"
+        )
+        super().__init__("Approval no longer matches the requested action.")
+
+
 def hash_arguments(arguments: dict[str, Any]) -> str:
-    canonical = json.dumps(arguments, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
-    return hashlib.sha256(canonical.encode()).hexdigest()
+    return hash_canonical(arguments)
 
 
 class ApprovalService:
@@ -78,8 +93,23 @@ class ApprovalService:
         matched_policy: str | None,
         workflow_id: str,
         reason: str,
+        binding: ApprovalBinding | None = None,
+        policy_id: str | None = None,
+        policy_version: int | None = None,
     ) -> ApprovalRequest:
         workflow = self._workflows.get(workflow_id)
+        binding = binding or ApprovalBinding.create(
+            agent_id=agent_id,
+            session_id=session_id,
+            gateway_tool_name=gateway_tool_name,
+            downstream_server=downstream_server,
+            downstream_tool_name=downstream_tool_name,
+            arguments=arguments,
+            environment="development",
+            security_context={},
+            policy_id=policy_id,
+            policy_version=policy_version,
+        )
         now = self._now()
         primary_deadline = now + timedelta(seconds=workflow.primary.timeout_seconds)
         final_deadline = primary_deadline + timedelta(seconds=workflow.fallback.timeout_seconds if workflow.fallback else 0)
@@ -106,6 +136,9 @@ class ApprovalService:
             workflow_id=workflow_id,
             stage="PRIMARY",
             primary_expires_at=primary_deadline,
+            approval_binding=binding.model_dump(mode="json"),
+            policy_id=policy_id,
+            policy_version=policy_version,
         )
         with self._session_factory() as session:
             session.add(record)
@@ -120,6 +153,10 @@ class ApprovalService:
             record = self._require_record(session, approval_id)
             self.advance_approval_state_if_needed(session, record)
             return self._to_model(record)
+
+    def get_original_arguments(self, approval_id: str) -> dict[str, Any]:
+        with self._session_factory() as session:
+            return dict(self._require_record(session, approval_id).original_arguments)
 
     def list(self) -> list[ApprovalRequest]:
         with self._session_factory() as session:
@@ -188,7 +225,13 @@ class ApprovalService:
         self._audit_event("BREAK_GLASS_GRANTED", record, approver.subject_id, approver.role, {"reason": reason})
         return self._to_model(record)
 
-    def claim_execution(self, approval_id: str, agent_id: str, arguments: dict[str, Any] | None = None) -> ExecutionClaim:
+    def claim_execution(
+        self,
+        approval_id: str,
+        agent_id: str,
+        arguments: dict[str, Any] | None = None,
+        binding: ApprovalBinding | None = None,
+    ) -> ExecutionClaim:
         with self._session_factory() as session:
             record = self._require_record(session, approval_id)
             self.advance_approval_state_if_needed(session, record)
@@ -199,9 +242,16 @@ class ApprovalService:
                 raise ApprovalTimedOutError("Approval workflow timed out.")
             if record.status == ApprovalStatus.EXPIRED.value:
                 raise ApprovalExpiredError("Approval has expired.")
-            if arguments is not None and hash_arguments(arguments) != record.argument_hash:
-                self._blocked_replay(record, agent_id, "Argument binding mismatch.")
-                raise ApprovalArgumentMismatchError("Arguments do not match the approved request.")
+            expected_binding = ApprovalBinding.model_validate(record.approval_binding)
+            actual_binding = binding or expected_binding.model_copy(
+                update={"canonical_arguments_hash": hash_arguments(arguments or record.original_arguments)}
+            )
+            changed_fields = binding_diff(expected_binding, actual_binding)
+            if changed_fields:
+                self._blocked_replay(record, agent_id, "Approval binding changed.")
+                if changed_fields == ["arguments"]:
+                    raise ApprovalArgumentMismatchError("Arguments do not match the approved request.")
+                raise ApprovalBindingMismatchError(changed_fields)
             permitted = {ApprovalStatus.APPROVED.value, ApprovalStatus.BREAK_GLASS_APPROVED.value}
             if record.status not in permitted:
                 self._blocked_replay(record, agent_id, "Approval is not executable.")

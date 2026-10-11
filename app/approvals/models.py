@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.approvals.workflows import ApprovalWorkflow
+from app.approvals.binding import ApprovalBinding
 from app.database.models import ApprovalRequestRecord
 
 
@@ -61,6 +62,9 @@ class ApprovalRequest(BaseModel):
     denied_at: datetime | None
     execution_status: str
     executed_at: datetime | None
+    binding: ApprovalBinding
+    policy_id: str | None
+    policy_version: int | None
 
     @classmethod
     def from_record(cls, record: ApprovalRequestRecord, workflow_id: str, workflow: ApprovalWorkflow) -> "ApprovalRequest":
@@ -80,6 +84,18 @@ class ApprovalRequest(BaseModel):
             break_glass=BreakGlassDetails(enabled=workflow.break_glass.enabled, allowed_roles=workflow.break_glass.roles, expires_at=record.break_glass_expires_at),
             approved_by=record.approved_by, approved_at=record.approved_at, denied_by=record.denied_by,
             denied_at=record.denied_at, execution_status=record.execution_status, executed_at=record.executed_at,
+            binding=ApprovalBinding.model_validate(record.approval_binding or {
+                "agent_id": record.agent_id,
+                "session_id": record.session_id,
+                "gateway_tool_name": record.gateway_tool_name,
+                "downstream_server": record.downstream_server,
+                "downstream_tool_name": record.downstream_tool_name,
+                "canonical_arguments_hash": record.argument_hash,
+                "environment": "development",
+                "security_context_hash": record.argument_hash,
+            }),
+            policy_id=record.policy_id,
+            policy_version=record.policy_version,
         )
 
 

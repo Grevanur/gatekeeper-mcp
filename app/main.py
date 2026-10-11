@@ -29,7 +29,8 @@ from app.gateway.service import MCPGatewayService
 from app.gateway.errors import GatewayError, GatewayErrorCode
 from app.security.evaluator import SecurityEvaluation, SecurityEvaluator
 from app.security.models import ToolRequestContext
-from app.policy.models import PoliciesConfiguration, PolicyAction
+from app.policy.lifecycle import PolicyLifecycleService, PolicySummary
+from app.policy.models import PoliciesConfiguration, PolicyAction, PolicyStatus
 from app.sessions.models import SessionSecurityContext
 from app.sessions.service import (
     SessionNotFoundError,
@@ -72,6 +73,7 @@ async def lifespan(_: FastAPI):
     approver_authenticator = ApproverAuthenticator(load_approvers_configuration(settings.config_directory / "approvers.yaml"))
     servers = DownstreamServerRegistry.from_config_file(settings.config_directory / "mcp_servers.yaml")
     audit_service = AuditService(SessionLocal)
+    policy_lifecycle = PolicyLifecycleService(SessionLocal, policies, audit_service)
     gateway_service = MCPGatewayService(
         servers=servers,
         metadata=ToolMetadataRegistry.from_config_file(settings.config_directory / "tool_metadata.yaml"),
@@ -91,6 +93,8 @@ async def lifespan(_: FastAPI):
     app.state.approval_service = gateway_service.approval_service
     app.state.approval_workflows = workflows
     initialize_database()
+    policy_lifecycle.synchronize()
+    app.state.policy_lifecycle = policy_lifecycle
     mcp_server = create_gateway_mcp_server(lambda: app.state.gateway_service)
     mcp_app = mcp_server.streamable_http_app(streamable_http_path="/")
     gateway_mcp_mount.set_app(mcp_app)
@@ -270,8 +274,38 @@ def approval_timeline(
     return app.state.audit_service.list_events(approval_id=approval_id, limit=500)
 
 
+@app.get("/policies", response_model=list[PolicySummary], tags=["policies"])
+def list_policies(
+    status: PolicyStatus | None = None,
+    owner: str | None = None,
+    review_status: str | None = None,
+    agent: AgentIdentity = Depends(get_current_agent),
+) -> list[PolicySummary]:
+    _require_admin(agent)
+    return app.state.policy_lifecycle.list(status=status, owner=owner, review_status=review_status)
+
+
+@app.get("/policies/{policy_id}", response_model=PolicySummary, tags=["policies"])
+def get_policy(policy_id: str, agent: AgentIdentity = Depends(get_current_agent)) -> PolicySummary | JSONResponse:
+    _require_admin(agent)
+    try:
+        return app.state.policy_lifecycle.get(policy_id)
+    except LookupError:
+        return _error_response(404, GatewayErrorCode.POLICY_NOT_FOUND, "Policy not found.", policy_id)
+
+
+@app.get("/policies/{policy_id}/history", tags=["policies"], response_model=None)
+def policy_history(policy_id: str, agent: AgentIdentity = Depends(get_current_agent)) -> list[dict[str, Any]] | JSONResponse:
+    _require_admin(agent)
+    history = app.state.policy_lifecycle.history(policy_id)
+    if not history:
+        return _error_response(404, GatewayErrorCode.POLICY_NOT_FOUND, "Policy not found.", policy_id)
+    return history
+
+
 class ApprovalExecutionRequest(BaseModel):
     arguments: dict[str, Any] | None = None
+    gateway_tool_name: str | None = None
 
 
 @app.post("/approvals/{approval_id}/execute", tags=["approvals"])
@@ -281,7 +315,10 @@ async def execute_approval(
     agent: AgentIdentity = Depends(get_current_agent),
 ) -> JSONResponse:
     outcome = await app.state.gateway_service.execute_approved_action(
-        agent, approval_id, payload.arguments if payload is not None else None
+        agent,
+        approval_id,
+        payload.arguments if payload is not None else None,
+        payload.gateway_tool_name if payload is not None else None,
     )
     if outcome.error is not None:
         return JSONResponse(status_code=409, content=outcome.error.model_dump(mode="json"))

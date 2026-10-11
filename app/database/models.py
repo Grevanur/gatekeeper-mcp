@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -85,6 +85,27 @@ class ApprovalRequestRecord(Base):
     break_glass_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     break_glass_by: Mapped[str | None] = mapped_column(String(128))
     break_glass_reason: Mapped[str | None] = mapped_column(Text)
+    approval_binding: Mapped[dict] = mapped_column(JSON, default=dict)
+    policy_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    policy_version: Mapped[int | None] = mapped_column(Integer)
+
+
+class PolicyVersionRecord(Base):
+    __tablename__ = "policy_versions"
+    __table_args__ = (UniqueConstraint("policy_id", "version", name="uq_policy_version"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    policy_id: Mapped[str] = mapped_column(String(128), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(256))
+    owner: Mapped[str] = mapped_column(String(128), index=True)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    change_reason: Mapped[str] = mapped_column(Text)
+    snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    snapshot_hash: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    stale_reported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class SessionSecurityContextRecord(Base):

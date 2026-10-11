@@ -50,6 +50,9 @@ def initialize_database() -> None:
             "break_glass_expires_at": "DATETIME",
             "break_glass_by": "VARCHAR(128)",
             "break_glass_reason": "TEXT",
+            "approval_binding": "JSON DEFAULT '{}'",
+            "policy_id": "VARCHAR(128)",
+            "policy_version": "INTEGER",
         },
         "audit_events": {"metadata": "JSON DEFAULT '{}'"},
     }

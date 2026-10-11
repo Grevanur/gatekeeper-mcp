@@ -19,7 +19,11 @@ class PolicyEngine:
     }
 
     def __init__(self, configuration: PoliciesConfiguration) -> None:
-        self._policies = sorted(configuration.policies, key=lambda policy: policy.priority, reverse=True)
+        self._policies = sorted(
+            [policy for policy in configuration.policies if policy.status.value == "ACTIVE"],
+            key=lambda policy: policy.priority,
+            reverse=True,
+        )
 
     def evaluate(
         self,
@@ -27,13 +31,30 @@ class PolicyEngine:
         risk: RiskAssessment,
     ) -> PolicyDecision:
         for policy in self._policies:
-            if self._matches(policy.match, context, risk):
+            if not self._matches(policy.match, context, risk):
+                continue
+            matches = [
+                candidate
+                for candidate in self._policies
+                if candidate.priority == policy.priority and self._matches(candidate.match, context, risk)
+            ]
+            if len({match.action for match in matches}) > 1:
                 return PolicyDecision(
-                    decision=policy.action,
-                    matched_policy=policy.name,
-                    reason=policy.reason,
-                    approval_workflow=policy.approval_workflow,
+                    decision=PolicyAction.DENY,
+                    matched_policy=None,
+                    matched_policies=[match.id for match in matches],
+                    reason="Multiple equal-priority policies produced conflicting decisions.",
+                    error_code="POLICY_CONFLICT",
                 )
+            return PolicyDecision(
+                decision=policy.action,
+                matched_policy=policy.name,
+                policy_id=policy.id,
+                policy_version=policy.version,
+                matched_policies=[policy.id],
+                reason=policy.reason,
+                approval_workflow=policy.approval_workflow,
+            )
         return PolicyDecision(
             decision=PolicyAction.DENY,
             matched_policy=None,

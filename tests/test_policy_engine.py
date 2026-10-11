@@ -62,15 +62,27 @@ def test_role_match_and_risk_level_match_are_supported() -> None:
     configuration = PoliciesConfiguration.model_validate(
         {
             "policies": [
-                {
-                    "name": "support-medium",
+                    {
+                        "id": "support-medium",
+                        "name": "support-medium",
+                        "description": "Test policy.",
+                        "version": 1,
+                        "owner": "platform-security",
+                        "review": {"last_reviewed_at": "2026-10-10", "review_interval_days": 90},
+                        "change_reason": "Test setup.",
                     "priority": 10,
                     "match": {"role": "support", "risk_level": "MEDIUM"},
                     "action": "DENY",
                     "reason": "Test role and level match.",
                 },
-                {
-                    "name": "fallback",
+                    {
+                        "id": "fallback",
+                        "name": "fallback",
+                        "description": "Fallback policy.",
+                        "version": 1,
+                        "owner": "platform-security",
+                        "review": {"last_reviewed_at": "2026-10-10", "review_interval_days": 90},
+                        "change_reason": "Test setup.",
                     "priority": 1,
                     "match": {},
                     "action": "ALLOW",

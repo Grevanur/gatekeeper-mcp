@@ -10,9 +10,11 @@ from uuid import uuid4
 from mcp_types import CallToolResult, TextContent, Tool
 
 from app.approvals.models import ApprovalRequest
+from app.approvals.binding import ApprovalBinding
 from app.approvals.service import (
     ApprovalAlreadyConsumedError,
     ApprovalArgumentMismatchError,
+    ApprovalBindingMismatchError,
     ApprovalDeniedError,
     ApprovalExpiredError,
     ApprovalNotFoundError,
@@ -256,6 +258,26 @@ class MCPGatewayService:
             )
             approval = None
             if evaluation.final_decision is PolicyAction.REQUIRE_APPROVAL and self._approval_service is not None:
+                binding = ApprovalBinding.create(
+                    agent_id=agent.agent_id,
+                    session_id=session_id,
+                    gateway_tool_name=gateway_tool_name,
+                    downstream_server=route.server_id,
+                    downstream_tool_name=route.downstream_tool_name,
+                    arguments=arguments,
+                    destination=arguments.get(metadata.destination_argument) if metadata.destination_argument else None,
+                    destination_type=metadata.destination_type,
+                    environment=agent.environment,
+                    security_context={
+                        "risk_level": evaluation.risk.level.value,
+                        "data_classification": metadata.data_classification,
+                        "is_external_destination": metadata.external_destination,
+                        "is_write_operation": metadata.write_operation,
+                        "session_sensitive_data_accessed": bool(session_context and session_context.sensitive_data_accessed),
+                    },
+                    policy_id=evaluation.policy.policy_id if evaluation.policy else None,
+                    policy_version=evaluation.policy.policy_version if evaluation.policy else None,
+                )
                 approval = self._approval_service.create(
                     request_id=request_id,
                     session_id=session_id,
@@ -270,6 +292,9 @@ class MCPGatewayService:
                     matched_policy=evaluation.policy.matched_policy if evaluation.policy else None,
                     workflow_id=evaluation.policy.approval_workflow if evaluation.policy else "default-high-risk-workflow",
                     reason=evaluation.reason,
+                    binding=binding,
+                    policy_id=evaluation.policy.policy_id if evaluation.policy else None,
+                    policy_version=evaluation.policy.policy_version if evaluation.policy else None,
                 )
             self._record_audit(
                 "TOOL_DECISION",
@@ -382,6 +407,7 @@ class MCPGatewayService:
         agent: AgentIdentity,
         approval_id: str,
         arguments: dict[str, Any] | None = None,
+        gateway_tool_name: str | None = None,
     ) -> GatewayCallResult:
         """Execute one claimed approval without reopening general policy authorization."""
 
@@ -393,7 +419,38 @@ class MCPGatewayService:
                 "approval-execution",
             )
         try:
-            claim = self._approval_service.claim_execution(approval_id, agent.agent_id, arguments)
+            approval = self._approval_service.get(approval_id)
+            resolved_tool = gateway_tool_name or approval.gateway_tool_name
+            metadata = self._metadata.get(resolved_tool)
+            if metadata is None:
+                return self._approval_error(GatewayErrorCode.APPROVAL_TOOL_MISMATCH, approval_id, agent)
+            candidate_arguments = arguments or self._approval_service.get_original_arguments(approval_id)
+            session_context = (
+                self._session_service.get(approval.session_id, agent.agent_id)
+                if self._session_service is not None
+                else None
+            )
+            binding = ApprovalBinding.create(
+                agent_id=agent.agent_id,
+                session_id=approval.session_id,
+                gateway_tool_name=resolved_tool,
+                downstream_server=approval.downstream_server,
+                downstream_tool_name=approval.downstream_tool_name,
+                arguments=candidate_arguments,
+                destination=candidate_arguments.get(metadata.destination_argument) if metadata.destination_argument else None,
+                destination_type=metadata.destination_type,
+                environment=agent.environment,
+                security_context={
+                    "risk_level": approval.risk_level,
+                    "data_classification": metadata.data_classification,
+                    "is_external_destination": metadata.external_destination,
+                    "is_write_operation": metadata.write_operation,
+                    "session_sensitive_data_accessed": bool(session_context and session_context.sensitive_data_accessed),
+                },
+                policy_id=approval.policy_id,
+                policy_version=approval.policy_version,
+            )
+            claim = self._approval_service.claim_execution(approval_id, agent.agent_id, arguments, binding)
         except ApprovalNotFoundError:
             return self._approval_error(GatewayErrorCode.APPROVAL_NOT_FOUND, approval_id, agent)
         except ApprovalExpiredError:
@@ -402,6 +459,10 @@ class MCPGatewayService:
             return self._approval_error(GatewayErrorCode.APPROVAL_TIMED_OUT, approval_id, agent)
         except ApprovalArgumentMismatchError:
             return self._approval_error(GatewayErrorCode.APPROVAL_ARGUMENT_MISMATCH, approval_id, agent)
+        except ApprovalBindingMismatchError as error:
+            return self._approval_error(
+                GatewayErrorCode(error.code), approval_id, agent, changed_fields=error.changed_fields
+            )
         except ApprovalAlreadyConsumedError:
             return self._approval_error(GatewayErrorCode.APPROVAL_ALREADY_CONSUMED, approval_id, agent)
         except ApprovalDeniedError:
@@ -428,9 +489,21 @@ class MCPGatewayService:
         return GatewayCallResult(result=downstream_result)
 
     def _approval_error(
-        self, code: GatewayErrorCode, approval_id: str, agent: AgentIdentity
+        self,
+        code: GatewayErrorCode,
+        approval_id: str,
+        agent: AgentIdentity,
+        changed_fields: list[str] | None = None,
     ) -> GatewayCallResult:
-        return self._error(code, "Approval cannot be executed.", str(uuid4()), "approval-execution", approval_id=approval_id)
+        return self._error(
+            code,
+            "Approval no longer matches the requested action." if changed_fields else "Approval cannot be executed.",
+            str(uuid4()),
+            "approval-execution",
+            approval_id=approval_id,
+            fresh_decision_required=bool(changed_fields),
+            changed_fields=changed_fields or [],
+        )
 
     def _record_audit(
         self,

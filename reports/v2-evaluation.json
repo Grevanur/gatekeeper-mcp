@@ -1,0 +1,191 @@
+{
+  "generated_at": "2026-10-12T01:00:34.856790+00:00",
+  "commit": "d31c5875258951362e4bbbcdbdf474e48930e9e8",
+  "metrics": {
+    "total_scenarios": 12,
+    "normal_scenarios": 2,
+    "adversarial_scenarios": 10,
+    "correct_decisions": 12,
+    "incorrect_decisions": 0,
+    "decision_correctness_rate": 1.0,
+    "unauthorized_execution_attempts": 10,
+    "unauthorized_execution_successes": 0,
+    "approval_bypass_attempts": 2,
+    "approval_bypass_successes": 0,
+    "replay_attempts": 1,
+    "replay_successes": 0,
+    "context_tampering_attempts": 1,
+    "context_tampering_successes": 0,
+    "binding_mutations_tested": 1,
+    "binding_mutations_detected": 1,
+    "simulation_scenarios": 3,
+    "simulation_downstream_executions": 0,
+    "policy_conflict_scenarios": 1,
+    "policy_conflicts_failed_closed": 1
+  },
+  "scenarios": [
+    {
+      "scenario_id": "normal-allowed-read",
+      "category": "normal",
+      "passed": true,
+      "expected_decision": "ALLOW",
+      "actual_decision": "ALLOW",
+      "expected_execution_count": 1,
+      "actual_execution_count": 1,
+      "expected_error_code": null,
+      "actual_error_code": null,
+      "detail": ""
+    },
+    {
+      "scenario_id": "permission-deny-zero-execution",
+      "category": "permissions",
+      "passed": true,
+      "expected_decision": "DENY",
+      "actual_decision": "DENY",
+      "expected_execution_count": 0,
+      "actual_execution_count": 0,
+      "expected_error_code": "PERMISSION_DENIED",
+      "actual_error_code": "PERMISSION_DENIED",
+      "detail": ""
+    },
+    {
+      "scenario_id": "approval-required-zero-execution",
+      "category": "approval",
+      "passed": true,
+      "expected_decision": "REQUIRE_APPROVAL",
+      "actual_decision": "REQUIRE_APPROVAL",
+      "expected_execution_count": 0,
+      "actual_execution_count": 0,
+      "expected_error_code": "APPROVAL_REQUIRED",
+      "actual_error_code": "APPROVAL_REQUIRED",
+      "detail": ""
+    },
+    {
+      "scenario_id": "approval-chain-exhausted",
+      "category": "approval_escalation",
+      "passed": true,
+      "expected_decision": "DENY",
+      "actual_decision": "DENY",
+      "expected_execution_count": 0,
+      "actual_execution_count": 0,
+      "expected_error_code": "APPROVAL_TIMED_OUT",
+      "actual_error_code": "APPROVAL_TIMED_OUT",
+      "detail": "APPROVAL_CREATED,APPROVAL_ESCALATED,APPROVAL_FINAL_DENY,APPROVAL_PRIMARY_PENDING,APPROVAL_TIMED_OUT,TOOL_DECISION"
+    },
+    {
+      "scenario_id": "valid-approved-execution",
+      "category": "normal",
+      "passed": true,
+      "expected_decision": "ALLOW",
+      "actual_decision": "ALLOW",
+      "expected_execution_count": 1,
+      "actual_execution_count": 1,
+      "expected_error_code": null,
+      "actual_error_code": null,
+      "detail": ""
+    },
+    {
+      "scenario_id": "consumed-approval-replay",
+      "category": "replay",
+      "passed": true,
+      "expected_decision": "DENY",
+      "actual_decision": "DENY",
+      "expected_execution_count": 0,
+      "actual_execution_count": 0,
+      "expected_error_code": "APPROVAL_ALREADY_CONSUMED",
+      "actual_error_code": "APPROVAL_ALREADY_CONSUMED",
+      "detail": ""
+    },
+    {
+      "scenario_id": "binding-destination-switch",
+      "category": "binding",
+      "passed": true,
+      "expected_decision": "DENY",
+      "actual_decision": "DENY",
+      "expected_execution_count": 0,
+      "actual_execution_count": 0,
+      "expected_error_code": "APPROVAL_DESTINATION_MISMATCH",
+      "actual_error_code": "APPROVAL_DESTINATION_MISMATCH",
+      "detail": ""
+    },
+    {
+      "scenario_id": "trusted-context-overrides-caller",
+      "category": "context_tampering",
+      "passed": true,
+      "expected_decision": "DENY",
+      "actual_decision": "DENY",
+      "expected_execution_count": 0,
+      "actual_execution_count": 0,
+      "expected_error_code": null,
+      "actual_error_code": null,
+      "detail": "business_criticality,customer_impact,environment"
+    },
+    {
+      "scenario_id": "equal-priority-policy-conflict",
+      "category": "policy_conflict",
+      "passed": true,
+      "expected_decision": "DENY",
+      "actual_decision": "DENY",
+      "expected_execution_count": 0,
+      "actual_execution_count": 0,
+      "expected_error_code": "POLICY_CONFLICT",
+      "actual_error_code": "POLICY_CONFLICT",
+      "detail": ""
+    },
+    {
+      "scenario_id": "simulation-zero-execution",
+      "category": "simulation",
+      "passed": true,
+      "expected_decision": "ALLOW",
+      "actual_decision": "ALLOW",
+      "expected_execution_count": 0,
+      "actual_execution_count": 0,
+      "expected_error_code": null,
+      "actual_error_code": null,
+      "detail": ""
+    },
+    {
+      "scenario_id": "same-tool-development-context",
+      "category": "simulation",
+      "passed": true,
+      "expected_decision": "ALLOW",
+      "actual_decision": "ALLOW",
+      "expected_execution_count": 0,
+      "actual_execution_count": 0,
+      "expected_error_code": null,
+      "actual_error_code": null,
+      "detail": ""
+    },
+    {
+      "scenario_id": "same-tool-production-bulk-context",
+      "category": "simulation",
+      "passed": true,
+      "expected_decision": "REQUIRE_APPROVAL",
+      "actual_decision": "REQUIRE_APPROVAL",
+      "expected_execution_count": 0,
+      "actual_execution_count": 0,
+      "expected_error_code": null,
+      "actual_error_code": null,
+      "detail": ""
+    }
+  ],
+  "metadata": {
+    "python_version": "3.14.4"
+  },
+  "benchmark": {
+    "iterations": 1000,
+    "measurement": "in-process direct-dispatch preparation compared with deterministic security evaluation; no network or downstream tool latency included",
+    "baseline_direct_dispatch_ms": {
+      "mean": 0.0,
+      "median": 0.0,
+      "p95": 0.0001
+    },
+    "security_evaluation_ms": {
+      "mean": 0.0065,
+      "median": 0.0064,
+      "p95": 0.007,
+      "p99": 0.0075
+    },
+    "added_security_overhead_ms": 0.0065
+  }
+}

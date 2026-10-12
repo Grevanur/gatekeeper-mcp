@@ -135,3 +135,16 @@ Human approval applies to the exact action reviewed, not a general category of f
 Gatekeeper MCP can evaluate the same tool differently depending on workflow context such as environment, data sensitivity, business criticality, blast radius, and customer impact. Context can increase privilege requirements, never silently weaken trusted security state; caller-declared metadata cannot override higher-trust context.
 
 Policy simulation allows proposed context and policy behavior to be evaluated before activation without executing downstream tools. Simulation never executes downstream actions, and policy changes should be tested before activation. See [workflow-context.md](docs/workflow-context.md) and [policy-simulation.md](docs/policy-simulation.md).
+
+## V2 release validation
+
+V2 adds approval governance, exact approval binding, policy lifecycle controls, adaptive workflow context, and dry-run simulation. The security evaluation harness verifies formal invariants and records downstream execution counts for blocked paths. Run the release gate from a fresh clone:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]'
+python scripts/verify_v2_release.py
+```
+
+This creates [the V2 evaluation report](reports/v2-evaluation.md). It measures only the local deterministic evaluation path; it does not claim protection from prompt injection, malicious downstream-server internals, covert channels, compromised hosts or approver accounts, enterprise identity federation, or distributed multi-node consistency. See [security-invariants.md](docs/security-invariants.md), [v1-vs-v2.md](docs/v1-vs-v2.md), and [the draft v2.0.0 notes](docs/v2-release-notes.md).

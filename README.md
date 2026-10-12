@@ -1,10 +1,34 @@
 # Gatekeeper MCP
 
-A deterministic zero-trust enforcement layer for Model Context Protocol (MCP) tool calls.
+A zero-trust security gateway for MCP-connected AI agents.
 
 ## Problem
 
-AI agents can be granted MCP tools that read sensitive information or take external actions. Gatekeeper MCP treats each tool call as an untrusted request and evaluates it before any downstream execution is introduced.
+AI agents can invoke increasingly powerful tools through MCP. Gatekeeper MCP evaluates each tool call before execution using identity, permissions, workflow context, deterministic risk, policy, and approval controls.
+
+## V2 Highlights
+
+- Approval governance with primary and fallback approvers, escalation, timeouts, and break-glass controls
+- Exact approval binding to tool, destination, arguments, environment, and security context
+- Policy ownership, versioning, review cycles, and stale-policy detection
+- Adaptive workflow context and deterministic context-aware decisions
+- Policy simulation and regression testing with zero downstream execution
+- Adversarial security evaluation and release validation
+
+## V2 Validation
+
+- Evaluation scenarios: 12/12 correct
+- Unauthorized downstream executions: 0
+- Replay successes: 0
+- Approval-bypass successes: 0
+- Context-tampering successes: 0
+- Binding mutations detected: 1/1
+- Simulation downstream executions: 0
+- Policy conflicts failed closed: 1/1
+- Mean deterministic evaluation latency: 0.0067 ms
+- P95 deterministic evaluation latency: 0.0072 ms
+
+Detailed human-readable evidence: [V2 evaluation report](reports/v2-evaluation.md). Machine-readable results are available in [v2-evaluation.json](reports/v2-evaluation.json).
 
 ## Current capabilities
 

@@ -1,8 +1,8 @@
 # Gatekeeper MCP V2 evaluation
 
-Generated: 2026-10-12T01:00:34.856790+00:00
+Generated: 2026-10-12T01:03:27.434322+00:00
 
-Commit evaluated: `d31c5875258951362e4bbbcdbdf474e48930e9e8`
+Commit evaluated: `7f1a754391969e5a8eb34c21443791ec8d839480`
 
 Python: `3.14.4`
 
@@ -25,17 +25,17 @@ Python: `3.14.4`
   "iterations": 1000,
   "measurement": "in-process direct-dispatch preparation compared with deterministic security evaluation; no network or downstream tool latency included",
   "baseline_direct_dispatch_ms": {
-    "mean": 0.0,
+    "mean": 0.0001,
     "median": 0.0,
     "p95": 0.0001
   },
   "security_evaluation_ms": {
-    "mean": 0.0065,
-    "median": 0.0064,
-    "p95": 0.007,
-    "p99": 0.0075
+    "mean": 0.0067,
+    "median": 0.0065,
+    "p95": 0.0072,
+    "p99": 0.0077
   },
-  "added_security_overhead_ms": 0.0065
+  "added_security_overhead_ms": 0.0066
 }
 ```
 

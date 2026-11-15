@@ -1,0 +1,21 @@
+{
+  "name": "gatekeeper-landing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "deploy": "npm run build && wrangler pages deploy dist"
+  },
+  "dependencies": {
+    "@astrojs/check": "latest",
+    "@tailwindcss/vite": "latest",
+    "astro": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}

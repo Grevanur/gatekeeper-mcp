@@ -172,3 +172,12 @@ python scripts/verify_v2_release.py
 ```
 
 This creates [the V2 evaluation report](reports/v2-evaluation.md). It measures only the local deterministic evaluation path; it does not claim protection from prompt injection, malicious downstream-server internals, covert channels, compromised hosts or approver accounts, enterprise identity federation, or distributed multi-node consistency. See [security-invariants.md](docs/security-invariants.md), [v1-vs-v2.md](docs/v1-vs-v2.md), and [the draft v2.0.0 notes](docs/v2-release-notes.md).
+## Limitations and known weaknesses
+
+Gatekeeper MCP is a local reference implementation. The V2 results above measure only the local deterministic evaluation path.
+
+- **Out of evaluation scope.** The V2 evaluation does not claim protection from prompt injection, malicious downstream-server internals, covert channels, compromised hosts or approver accounts, enterprise identity federation, or distributed multi-node consistency. See [the V2 evaluation report](reports/v2-evaluation.md) and [security-invariants.md](docs/security-invariants.md).
+- **Development identity only.** Agents are identified by development bearer tokens. The supplied tokens (`dev-admin-token`, `dev-reviewer-token`, and `dev-support-token`) are intentionally local-only and are not a production identity system.
+- **Approval arguments are stored locally.** To support approval replay, the original request arguments are stored in the local SQLite database. Audit records are redacted, but this stored copy is not.
+
+Production use requires encryption, secure key management, and stronger identity controls.
